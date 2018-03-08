@@ -42,21 +42,20 @@ func (l *dbLink) Close() error {
 func (l *dbLink) Query(q string, args ...interface{}) (*sql.Rows, error) {
     p         := l.link.handleSqlBeforeExec(&q)
     rows, err := l.slave.Query(*p, args ...)
-    err        = l.formatError(err, p, args...)
-    if (err == nil) {
+    if err == nil {
         return rows, nil
     }
-    return nil, err
+    return nil, l.formatError(err, p, args...)
 }
 
 // 执行一条sql，并返回执行情况，主要用于非查询操作
 func (l *dbLink) Exec(q string, args ...interface{}) (sql.Result, error) {
-    //fmt.Println(q)
-    //fmt.Println(args)
     p      := l.link.handleSqlBeforeExec(&q)
     r, err := l.master.Exec(*p, args ...)
-    err     = l.formatError(err, p, args...)
-    return r, err
+    if err == nil {
+        return r, nil
+    }
+    return nil, l.formatError(err, p, args...)
 }
 
 // 格式化错误信息
@@ -67,7 +66,7 @@ func (l *dbLink) formatError(err error, q *string, args ...interface{}) error {
         if len(args) > 0 {
             errstr += fmt.Sprintf("DB PARAM: %v\n", args)
         }
-        err     = errors.New(errstr)
+        err = errors.New(errstr)
     }
     return err
 }
