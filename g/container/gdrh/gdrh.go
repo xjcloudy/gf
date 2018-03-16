@@ -17,7 +17,8 @@ type Map struct {
 // 哈希表
 type drhTable struct {
     m      *Map         // 所属Map对象
-    deep   int          // 表深度(其实没什么意义，主要展示层级时候可以用得上)
+    p      *drhPart     // 关联的分区对象(哪个分区指向该哈希表)
+    deep   int          // 表深度(其实没什么意义，打印层级时候可以用得上)
     size   int          // 表分区(除根节点外，必须为奇数)
     parts  []*drhPart   // 分区数组
 }
@@ -67,6 +68,17 @@ func (m *Map) Get(key int) interface{} {
     return nil
 }
 
+// 根据键名删除键值对
+func (m *Map) Remove(key int) {
+    p := m.root.search(key)
+    if p != nil {
+        result, cmp := p.search(key)
+        if cmp == 0 {
+            p.remove(result)
+        }
+    }
+}
+
 // 在当前哈希表上计算分区索引号
 func (t *drhTable) getPartIndexByKey(key int) int {
     return key % t.size
@@ -85,7 +97,7 @@ func (t *drhTable) search(key int) *drhPart {
     return nil
 }
 
-// 在当前哈希表上设置兼职对数据
+// 在当前哈希表上设置键值对数据
 func (t *drhTable) set(key int, value interface{}) {
     p := t.search(key)
     if p == nil {
@@ -113,7 +125,26 @@ func (t *drhTable) set(key int, value interface{}) {
     }
 }
 
-// 对当前分区执行DRH算法
+// 在当前哈希表上设置键值对数据
+func (t *drhTable) remove(key int) {
+    p := t.search(key)
+    if p != nil {
+        if p.table != nil {
+            p.table.remove(key)
+            return
+        }
+        index, cmp := p.search(key)
+        if cmp == 0 {
+            p.remove(index)
+            // 如果分区元素
+            if len(p.items) == 0 {
+                p.table = nil
+            }
+        }
+    }
+}
+
+// 对当前分区执行DRH算法，重新散列该分区数据到新的哈希表
 func (p *drhPart) checkAndDoDeepReHash() {
     // 再判断是否需要进行DRH算法处理
     if len(p.items) != p.t.m.degree {
@@ -151,6 +182,7 @@ func (p *drhPart) checkAndDoDeepReHash() {
     // 分区必定会成功，这里递增哈希表，增加深度
     table := &drhTable {
         m     : p.t.m,
+        p     : p,
         deep  : p.t.deep + 1,
         size  : size,
         parts : make([]*drhPart, size),
@@ -169,6 +201,7 @@ func (p *drhPart) checkAndDoDeepReHash() {
 func (p *drhPart) save(item *drhItem, index int, cmp int) {
     if cmp == 0 {
         p.items[index] = item
+        return
     }
     pos := index
     if cmp == -1 {
@@ -183,6 +216,11 @@ func (p *drhPart) save(item *drhItem, index int, cmp int) {
     rear   := append([]*drhItem{}, p.items[pos : ]...)
     p.items = append(p.items[0 : pos], item)
     p.items = append(p.items, rear...)
+}
+
+// 删除数组元素
+func (p *drhPart) remove(index int) {
+    p.items = append(p.items[ : index], p.items[index + 1 : ]...)
 }
 
 // 在当前分区上进行二分检索
