@@ -17,9 +17,9 @@ type Map struct {
 // 哈希表
 type drhTable struct {
     m      *Map         // 所属Map对象
-    deep   int          // 表深度
+    deep   int          // 表深度(其实没什么意义，主要展示层级时候可以用得上)
     size   int          // 表分区(除根节点外，必须为奇数)
-    parts  []*drhPart      // 分区数组
+    parts  []*drhPart   // 分区数组
 }
 
 // 哈希表中的分区
@@ -148,7 +148,7 @@ func (p *drhPart) checkAndDoDeepReHash() {
         }
     }
 
-    // 分区必定会成功，这里便递增哈希表
+    // 分区必定会成功，这里递增哈希表，增加深度
     table := &drhTable {
         m     : p.t.m,
         deep  : p.t.deep + 1,
@@ -180,8 +180,7 @@ func (p *drhPart) save(item *drhItem, index int, cmp int) {
             pos = len(p.items)
         }
     }
-    array  := make([]*drhItem, 0)
-    rear   := append(array, p.items[pos : ]...)
+    rear   := append([]*drhItem{}, p.items[pos : ]...)
     p.items = append(p.items[0 : pos], item)
     p.items = append(p.items, rear...)
 }

@@ -17,28 +17,28 @@ var drh  = gdrh.New(100000, 100000)
 var gom  = make(map[int]interface{})
 
 func BenchmarkDrh_Set(b *testing.B) {
-    b.N = 10000000
+    b.N = 1000000
     for i := 0; i < b.N; i++ {
         drh.Set(i, i)
     }
 }
 
 func BenchmarkDrh_Get(b *testing.B) {
-    b.N = 10000000
+    b.N = 1000000
     for i := 0; i < b.N; i++ {
         drh.Get(i)
     }
 }
 
 func BenchmarkGoMap_Set(b *testing.B) {
-    b.N = 10000000
+    b.N = 1000000
     for i := 0; i < b.N; i++ {
         gom[i] = i
     }
 }
 
 func BenchmarkGoMap_Get(b *testing.B) {
-    b.N = 10000000
+    b.N = 1000000
     for i := 0; i < b.N; i++ {
         if _, ok := gom[i]; ok {}
     }
