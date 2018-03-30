@@ -16,6 +16,7 @@ import (
     "gitee.com/johng/gf/g/container/glist"
     "sync/atomic"
     "sync"
+    "gitee.com/johng/gf/g/container/gtype"
 )
 
 // 文件指针池
@@ -24,7 +25,7 @@ type Pool struct {
     flag    int             // 文件打开标识
     list    *glist.List     // 可用/闲置的文件指针链表
     idlemax int             // 闲置最大时间，超过该时间则被系统回收(秒)
-    closed  bool            // 连接池是否已关闭
+    closed  *gtype.Bool     // 连接池是否已关闭
 }
 
 // 文件指针池指针
@@ -62,7 +63,7 @@ func New(path string, flag int, expire int) *Pool {
     if expire != -1 {
         go func(p *Pool) {
             // 遍历可用指针列表，判断是否过期
-            for !p.closed {
+            for !p.closed.Val() {
                 r := p.list.Front()
                 if r != nil && r.Value != nil {
                     f := r.Value.(*File)
@@ -111,7 +112,7 @@ func (p *Pool) File() (*File, error) {
 
 // 关闭指针池
 func (p *Pool) Close() {
-    p.closed = true
+    p.closed.Set(true)
 }
 
 // 获得底层文件指针
@@ -128,11 +129,11 @@ func (f *File) Close() {
 // 销毁指针
 func (f *File) destroy() {
     f.Lock()
-    defer f.Unlock()
     if f.file != nil {
         f.file.Close()
         f.file =  nil
     }
+    f.Unlock()
 }
 
 // 获取指针过期时间

@@ -2,16 +2,17 @@ package main
 
 import (
     "fmt"
-    "gitee.com/johng/gf/g/util/gidgen"
+    "gitee.com/johng/gf/g/os/gbinlog"
+    "gitee.com/johng/gf/g/encoding/gbinary"
 )
 
 func main() {
-    g := gidgen.New(2)
-    for i := 0; i < 11; i++ {
-        fmt.Println(g.Int())
+    b, err := gbinlog.New("/tmp/gbinlog", "gbinlog")
+    fmt.Println(err)
+    //b.SetCap(102400)
+    for i := 0; i < 100; i++ {
+        fmt.Println(b.Push(gbinary.EncodeInt(i)))
     }
-    g.Close()
-    fmt.Println(g.Uint())
     //events2 := make(chan int, 100)
     //go func() {
     //    for{
