@@ -13,7 +13,7 @@ func main() {
     }
     defer watch.Close()
     //添加要监控的对象，文件或文件夹
-    err = watch.Add("/home/john/Documents/temp")
+    err = watch.Add("/home/john/Documents/temp.txt")
     if err != nil {
         log.Fatal(err)
     }
@@ -43,7 +43,6 @@ func main() {
                     if ev.Op&fsnotify.Chmod == fsnotify.Chmod {
                         log.Println("修改权限 : ", ev.Name)
                     }
-                    watch.Add("/home/john/Documents/temp")
 
                 case err := <-watch.Errors:
                     log.Println("error : ", err)
