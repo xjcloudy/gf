@@ -10,17 +10,16 @@ package gcfg
 
 import (
     "sync"
-    "time"
     "strings"
     "gitee.com/johng/gf/g/os/gfile"
+    "gitee.com/johng/gf/g/os/gfsnotify"
     "gitee.com/johng/gf/g/container/gmap"
     "gitee.com/johng/gf/g/encoding/gjson"
     "gitee.com/johng/gf/g/container/gtype"
 )
 
 const (
-    gDEFAULT_CONFIG_FILE         = "config.yml" // 默认的配置管理文件名称
-    gDEFAULT_AUTO_CHECK_INTERVAL = 3            // 自动检测文件更新间隔(秒)
+    gDEFAULT_CONFIG_FILE = "config.yml" // 默认的配置管理文件名称
 )
 
 // 配置管理对象
@@ -28,20 +27,16 @@ type Config struct {
     mu     sync.RWMutex             // 并发互斥锁
     path   *gtype.String            // 配置文件存放目录，绝对路径
     jsons  *gmap.StringInterfaceMap // 配置文件对象
-    checks *gmap.StringIntMap       // 配置文件自动更新检查数组
     closed *gtype.Bool              // 是否已经被close
 }
 
 // 生成一个配置管理对象
 func New(path string) *Config {
-    c := &Config {
+    return &Config {
         path   : gtype.NewString(path),
         jsons  : gmap.NewStringInterfaceMap(),
-        checks : gmap.NewStringIntMap(),
         closed : gtype.NewBool(),
     }
-    c.startAutoUpdateLoop()
-    return c
 }
 
 // 判断从哪个配置文件中获取内容，返回配置文件的绝对路径
@@ -76,8 +71,10 @@ func (c *Config) getJson(file []string) *gjson.Json {
         return r.(*gjson.Json)
     }
     if j, err := gjson.Load(fpath); err == nil {
+        c.mu.Lock()
+        c.addMonitor(fpath)
         c.jsons.Set(fpath, j)
-        c.checks.Set(fpath, int(gfile.MTime(fpath)))
+        c.mu.Unlock()
         return j
     }
     return nil
@@ -167,26 +164,15 @@ func (c *Config) Close() {
     c.closed.Set(true)
 }
 
-// 异步文件更新判断，当外部更新了配置文件后，缓存的配置会更新
-func (c *Config) startAutoUpdateLoop() {
-    go func() {
-        for {
-            time.Sleep(gDEFAULT_AUTO_CHECK_INTERVAL*time.Second)
-            if c.closed.Val() {
+// 添加文件监控
+func (c *Config) addMonitor(path string) {
+    if c.jsons.Get(path) == nil {
+        gfsnotify.Add(path, func(event *gfsnotify.Event) {
+            if event.IsRemove() {
+                gfsnotify.Remove(event.Path)
                 return
             }
-            m := make(map[string]int)
-            c.checks.Iterator(func(k string, v int) bool {
-                mtime := int(gfile.MTime(k))
-                if mtime > v {
-                    m[k] = mtime
-                    c.jsons.Remove(k)
-                }
-                return true
-            })
-            if len(m) > 0 {
-                c.checks.BatchSet(m)
-            }
-        }
-    }()
+            c.jsons.Remove(event.Path)
+        })
+    }
 }
