@@ -1,16 +1,14 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 单进程高速缓存.
+// Package gcache provides high performance and concurrent-safe in-memory cache for process.
+// 
+// 缓存模块,
+// 并发安全的单进程高速缓存.
 package gcache
-
-const (
-    // 当数据不过期时，默认设置的过期属性值，相当于：math.MaxInt64/1000000
-    gDEFAULT_MAX_EXPIRE = 9223372036854
-)
 
 // 全局缓存管理对象
 var cache = New()
@@ -64,6 +62,11 @@ func Remove(key interface{}) interface{} {
 // (使用全局KV缓存对象)批量删除指定键值对
 func BatchRemove(keys []interface{}) {
     cache.BatchRemove(keys)
+}
+
+// 返回缓存的所有数据键值对(不包含已过期数据)
+func Data() map[interface{}]interface{} {
+    return cache.Data()
 }
 
 // 获得所有的键名，组成数组返回

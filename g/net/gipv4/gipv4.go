@@ -5,7 +5,7 @@
 // You can obtain one at https://gitee.com/johng/gf.
 //
 
-// IPv4
+// Package gipv4 provides useful API for IPv4 address handling.
 package gipv4
 
 import (

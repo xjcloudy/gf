@@ -4,7 +4,7 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// MD5
+// Package gmd5 provides useful API for MD5 encryption/decryption algorithms.
 package gmd5
 
 import (
@@ -35,6 +35,7 @@ func EncryptFile(path string) string {
     if e != nil {
         return ""
     }
+    defer f.Close()
     h := md5.New()
     _, e = io.Copy(h, f)
     if e != nil {

@@ -23,12 +23,12 @@ func Server(name...interface{}) *ghttp.Server {
 }
 
 // TCPServer单例对象
-func TcpServer(name...interface{}) *gtcp.Server {
+func TCPServer(name...interface{}) *gtcp.Server {
     return gtcp.GetServer(name...)
 }
 
 // UDPServer单例对象
-func UdpServer(name...interface{}) *gudp.Server {
+func UDPServer(name...interface{}) *gudp.Server {
     return gudp.GetServer(name...)
 }
 
@@ -44,12 +44,12 @@ func Config(file...string) *gcfg.Config {
 }
 
 // 数据库操作对象，使用了连接池
-func Database(name...string) *gdb.Db {
+func Database(name...string) gdb.DB {
     return gins.Database(name...)
 }
 
 // (别名)Database
-func DB(name...string) *gdb.Db {
+func DB(name...string) gdb.DB {
     return gins.Database(name...)
 }
 

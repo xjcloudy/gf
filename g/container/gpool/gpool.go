@@ -4,15 +4,18 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gpool provides a object-reusable concurrent-safe pool.
+//
 // 对象复用池.
 package gpool
 
 import (
-    "time"
     "errors"
-    "gitee.com/johng/gf/g/os/gtime"
     "gitee.com/johng/gf/g/container/glist"
     "gitee.com/johng/gf/g/container/gtype"
+    "gitee.com/johng/gf/g/os/gtime"
+    "gitee.com/johng/gf/g/os/gtimer"
+    "time"
 )
 
 // 对象池
@@ -31,25 +34,27 @@ type poolItem struct {
     value  interface{}         // 对象值
 }
 
+// 对象创建方法类型
+type NewFunc    func() (interface{}, error)
+
+// 对象过期方法类型
+type ExpireFunc func(interface{})
+
 // 创建一个对象池，为保证执行效率，过期时间一旦设定之后无法修改
 // expire = 0表示不过期，expire < 0表示使用完立即回收，expire > 0表示超时回收
 // 注意过期时间单位为**毫秒**
-func New(expire int, newFunc...func() (interface{}, error)) *Pool {
+func New(expire int, newFunc NewFunc, expireFunc...ExpireFunc) *Pool {
     r := &Pool {
         list    : glist.New(),
         closed  : gtype.NewBool(),
         Expire  : int64(expire),
+        NewFunc : newFunc,
     }
-    if len(newFunc) > 0 {
-        r.NewFunc = newFunc[0]
+    if len(expireFunc) > 0 {
+        r.ExpireFunc = expireFunc[0]
     }
-    go r.expireCheckingLoop()
+    gtimer.AddSingleton(time.Second, r.checkExpire)
     return r
-}
-
-// 设置对象过期销毁时的关闭方法
-func (p *Pool) SetExpireFunc(expireFunc func(interface{})) {
-    p.ExpireFunc = expireFunc
 }
 
 // 放一个临时对象到池中
@@ -99,22 +104,22 @@ func (p *Pool) Close() {
 }
 
 // 超时检测循环
-func (p *Pool) expireCheckingLoop() {
-    for !p.closed.Val() {
-        for {
-            if r := p.list.PopFront(); r != nil {
-                item := r.(*poolItem)
-                if item.expire == 0 || item.expire > gtime.Millisecond() {
-                    p.list.PushFront(item)
-                    break
-                }
-                if p.ExpireFunc != nil {
-                    p.ExpireFunc(item.value)
-                }
-            } else {
+func (p *Pool) checkExpire() {
+    if p.closed.Val() {
+        gtimer.Exit()
+    }
+    for {
+        if r := p.list.PopFront(); r != nil {
+            item := r.(*poolItem)
+            if item.expire == 0 || item.expire > gtime.Millisecond() {
+                p.list.PushFront(item)
                 break
             }
+            if p.ExpireFunc != nil {
+                p.ExpireFunc(item.value)
+            }
+        } else {
+            break
         }
-        time.Sleep(time.Second)
     }
 }

@@ -62,6 +62,9 @@ func NewFromStrLayout (str string, layout string) *Time {
 
 // 时间戳转换为时间对象，时间戳支持到纳秒的数值
 func NewFromTimeStamp (timestamp int64) *Time {
+    if timestamp == 0 {
+        return &Time {}
+    }
     for timestamp < 1e18 {
         timestamp *= 10
     }
@@ -117,13 +120,13 @@ func (t *Time) ToLocation(location *time.Location) *Time {
     return t
 }
 
-// 时区转换为指定的时区(通过时区名称，如：AsiaShanghai)
+// 时区转换为指定的时区(通过时区名称，如：Asia/Shanghai)
 func (t *Time) ToZone(zone string) *Time {
     if l, err := time.LoadLocation(zone); err == nil {
         t.Time = t.Time.In(l)
         return t
     } else {
-        panic(err)
+        //panic(err)
         return nil
     }
 }

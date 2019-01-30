@@ -4,6 +4,8 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gregex provides high performance API for regular expression functionality.
+// 
 // 正则表达式.
 package gregex
 
@@ -13,7 +15,7 @@ import (
 )
 
 // 缓存对象，主要用于缓存底层regx对象
-var regxCache = gmap.NewStringInterfaceMap(true)
+var regxCache = gmap.NewStringInterfaceMap()
 
 // 根据pattern生成对应的regexp正则对象
 func getRegexp(pattern string) (*regexp.Regexp, error) {

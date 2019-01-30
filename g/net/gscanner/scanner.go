@@ -4,7 +4,7 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// IP扫描器.
+// Package gscanner provides a port scanner for local intranet.
 package gscanner
 
 import (

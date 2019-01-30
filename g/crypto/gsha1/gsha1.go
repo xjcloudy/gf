@@ -4,7 +4,7 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// SHA1
+// Package gsha1 provides useful API for SHA1 encryption/decryption algorithms.
 package gsha1
 
 import (

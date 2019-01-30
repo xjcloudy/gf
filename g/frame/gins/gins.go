@@ -4,23 +4,24 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gins provides instances management and some core components.
+// 
 // 单例对象管理.
 // 框架内置了一些核心对象获取方法，并且可以通过Set和Get方法实现IoC以及对内置核心对象的自定义替换
 package gins
 
 import (
+    "fmt"
+    "gitee.com/johng/gf/g/container/gmap"
+    "gitee.com/johng/gf/g/database/gdb"
+    "gitee.com/johng/gf/g/database/gredis"
+    "gitee.com/johng/gf/g/internal/cmdenv"
     "gitee.com/johng/gf/g/os/gcfg"
-    "gitee.com/johng/gf/g/os/gcmd"
-    "gitee.com/johng/gf/g/os/genv"
+    "gitee.com/johng/gf/g/os/gfile"
+    "gitee.com/johng/gf/g/os/gfsnotify"
     "gitee.com/johng/gf/g/os/glog"
     "gitee.com/johng/gf/g/os/gview"
-    "gitee.com/johng/gf/g/os/gfile"
-    "gitee.com/johng/gf/g/container/gmap"
     "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/g/database/gdb"
-    "gitee.com/johng/gf/g/os/gfsnotify"
-    "fmt"
-    "gitee.com/johng/gf/g/database/gredis"
     "gitee.com/johng/gf/g/util/gregex"
 )
 
@@ -72,14 +73,8 @@ func View(name...string) *gview.View {
     }
     key := fmt.Sprintf("%s.%s", gFRAME_CORE_COMPONENT_NAME_VIEW, group)
     return instances.GetOrSetFuncLock(key, func() interface{} {
-        path := gcmd.Option.Get("gf.viewpath")
-        if path == "" {
-            path = genv.Get("GF_VIEWPATH")
-            if path == "" {
-                path = gfile.SelfDir()
-            }
-        }
-        view := gview.Get(path)
+        path := cmdenv.Get("gf.gview.path", gfile.SelfDir()).String()
+        view := gview.New(path)
         // 添加基于源码的搜索目录检索地址，常用于开发环境调试，只添加入口文件目录
         if p := gfile.MainPkgPath(); p != "" && gfile.Exists(p) {
             view.AddPath(p)
@@ -99,13 +94,7 @@ func Config(file...string) *gcfg.Config {
     }
     return instances.GetOrSetFuncLock(fmt.Sprintf("%s.%s", gFRAME_CORE_COMPONENT_NAME_CONFIG, configFile),
         func() interface{} {
-            path := gcmd.Option.Get("gf.cfgpath")
-            if path == "" {
-                path = genv.Get("GF_CFGPATH")
-                if path == "" {
-                    path = gfile.SelfDir()
-                }
-            }
+            path   := cmdenv.Get("gf.gcfg.path", gfile.SelfDir()).String()
             config := gcfg.New(path, configFile)
             // 添加基于源码的搜索目录检索地址，常用于开发环境调试，只添加入口文件目录
             if p := gfile.MainPkgPath(); p != "" && gfile.Exists(p) {
@@ -116,7 +105,7 @@ func Config(file...string) *gcfg.Config {
 }
 
 // 数据库操作对象，使用了连接池
-func Database(name...string) *gdb.Db {
+func Database(name...string) gdb.DB {
     config := Config()
     group  := gdb.DEFAULT_GROUP_NAME
     if len(name) > 0 {
@@ -124,64 +113,67 @@ func Database(name...string) *gdb.Db {
     }
     key := fmt.Sprintf("%s.%s", gFRAME_CORE_COMPONENT_NAME_DATABASE, group)
     db  := instances.GetOrSetFuncLock(key, func() interface{} {
-        m := config.GetMap("database")
-        if m == nil {
-            glog.Errorfln(`incomplete configuration for database: "database" node not found in config file "%s"`, config.GetFilePath())
-        }
-        for group, v := range m {
-            cg := gdb.ConfigGroup{}
-            if list, ok := v.([]interface{}); ok {
-                for _, nodev := range list {
-                    node  := gdb.ConfigNode{}
-                    nodem := nodev.(map[string]interface{})
-                    if value, ok := nodem["host"]; ok {
-                        node.Host = gconv.String(value)
-                    }
-                    if value, ok := nodem["port"]; ok {
-                        node.Port = gconv.String(value)
-                    }
-                    if value, ok := nodem["user"]; ok {
-                        node.User = gconv.String(value)
-                    }
-                    if value, ok := nodem["pass"]; ok {
-                        node.Pass = gconv.String(value)
-                    }
-                    if value, ok := nodem["name"]; ok {
-                        node.Name = gconv.String(value)
-                    }
-                    if value, ok := nodem["type"]; ok {
-                        node.Type = gconv.String(value)
-                    }
-                    if value, ok := nodem["role"]; ok {
-                        node.Role = gconv.String(value)
-                    }
-                    if value, ok := nodem["charset"]; ok {
-                        node.Charset = gconv.String(value)
-                    }
-                    if value, ok := nodem["priority"]; ok {
-                        node.Priority = gconv.Int(value)
-                    }
-                    if value, ok := nodem["linkinfo"]; ok {
-                        node.Linkinfo = gconv.String(value)
-                    }
-                    if value, ok := nodem["max-idle"]; ok {
-                        node.MaxIdleConnCount = gconv.Int(value)
-                    }
-                    if value, ok := nodem["max-open"]; ok {
-                        node.MaxOpenConnCount = gconv.Int(value)
-                    }
-                    if value, ok := nodem["max-lifetime"]; ok {
-                        node.MaxConnLifetime = gconv.Int(value)
-                    }
-                    cg = append(cg, node)
-                }
+        if gdb.GetConfig(group) == nil {
+            m := config.GetMap("database")
+            if m == nil {
+                glog.Error(`database init failed: "database" node not found, is config file or configuration missing?`)
+                return nil
             }
-            gdb.AddConfigGroup(group, cg)
+            for group, v := range m {
+                cg := gdb.ConfigGroup{}
+                if list, ok := v.([]interface{}); ok {
+                    for _, nodev := range list {
+                        node  := gdb.ConfigNode{}
+                        nodem := nodev.(map[string]interface{})
+                        if value, ok := nodem["host"]; ok {
+                            node.Host = gconv.String(value)
+                        }
+                        if value, ok := nodem["port"]; ok {
+                            node.Port = gconv.String(value)
+                        }
+                        if value, ok := nodem["user"]; ok {
+                            node.User = gconv.String(value)
+                        }
+                        if value, ok := nodem["pass"]; ok {
+                            node.Pass = gconv.String(value)
+                        }
+                        if value, ok := nodem["name"]; ok {
+                            node.Name = gconv.String(value)
+                        }
+                        if value, ok := nodem["type"]; ok {
+                            node.Type = gconv.String(value)
+                        }
+                        if value, ok := nodem["role"]; ok {
+                            node.Role = gconv.String(value)
+                        }
+                        if value, ok := nodem["charset"]; ok {
+                            node.Charset = gconv.String(value)
+                        }
+                        if value, ok := nodem["priority"]; ok {
+                            node.Priority = gconv.Int(value)
+                        }
+                        if value, ok := nodem["linkinfo"]; ok {
+                            node.Linkinfo = gconv.String(value)
+                        }
+                        if value, ok := nodem["max-idle"]; ok {
+                            node.MaxIdleConnCount = gconv.Int(value)
+                        }
+                        if value, ok := nodem["max-open"]; ok {
+                            node.MaxOpenConnCount = gconv.Int(value)
+                        }
+                        if value, ok := nodem["max-lifetime"]; ok {
+                            node.MaxConnLifetime = gconv.Int(value)
+                        }
+                        cg = append(cg, node)
+                    }
+                }
+                gdb.AddConfigGroup(group, cg)
+            }
+            // 使用gfsnotify进行文件监控，当配置文件有任何变化时，清空数据库配置缓存
+            gfsnotify.Add(config.GetFilePath(), func(event *gfsnotify.Event) {
+                instances.Remove(key)
+            })
         }
-        // 使用gfsnotify进行文件监控，当配置文件有任何变化时，清空数据库配置缓存
-        gfsnotify.Add(config.GetFilePath(), func(event *gfsnotify.Event) {
-            instances.Remove(key)
-        })
         if db, err := gdb.New(name...); err == nil {
             return db
         } else {
@@ -190,7 +182,7 @@ func Database(name...string) *gdb.Db {
         return nil
     })
     if db != nil {
-        return db.(*gdb.Db)
+        return db.(gdb.DB)
     }
     return nil
 }

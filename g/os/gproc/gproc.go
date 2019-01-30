@@ -4,8 +4,10 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 进程管理/通信.
-// 本进程管理从syscall, os.StartProcess, exec.Cmd都使用过，
+// Package gproc implements communication and management of processes.
+// 
+// 进程管理/通信, 
+// 本进程管理从syscall, os.StartProcess, exec.Cmd都使用过, 
 // 最后采用了exec.Cmd来实现多进程管理，这是一个顶层的跨平台封装，兼容性更好，另外两个是偏底层的接口。
 package gproc
 
@@ -121,7 +123,6 @@ func getShell() string {
             }
             return path
     }
-    return ""
 }
 
 // 获取当前系统默认shell执行指令的option参数
@@ -132,7 +133,6 @@ func getShellOption() string {
         default:
             return "-c"
     }
-    return ""
 }
 
 // 从环境变量PATH中搜索可执行文件

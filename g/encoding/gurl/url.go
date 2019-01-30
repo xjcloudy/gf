@@ -4,7 +4,7 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// URL编码
+// Package gurl provides useful API for URL handling.
 package gurl
 
 import "net/url"

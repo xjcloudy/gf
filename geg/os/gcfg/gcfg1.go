@@ -2,11 +2,12 @@ package main
 
 import (
     "fmt"
-    "gitee.com/johng/gf/g/os/gcfg"
+    "gitee.com/johng/gf/g"
 )
 
+// 使用第二个参数指定读取的配置文件
 func main() {
-    c              := gcfg.New("/home/john/Workspace/Go/GOPATH/src/gitee.com/johng/gf/geg/os/gcfg")
+    c              := g.Config()
     redisConfig    := c.GetArray("redis-cache", "redis.toml")
     memConfig      := c.GetArray("",    "memcache.yml")
     fmt.Println(redisConfig)

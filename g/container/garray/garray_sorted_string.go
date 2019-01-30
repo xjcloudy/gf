@@ -9,7 +9,7 @@ package garray
 import (
     "gitee.com/johng/gf/g/container/gtype"
     "strings"
-    "gitee.com/johng/gf/g/container/internal/rwmutex"
+    "gitee.com/johng/gf/g/internal/rwmutex"
 )
 
 // 默认按照从低到高进行排序
@@ -21,9 +21,9 @@ type SortedStringArray struct {
     compareFunc func(v1, v2 string) int // 比较函数，返回值 -1: v1 < v2；0: v1 == v2；1: v1 > v2
 }
 
-func NewSortedStringArray(cap int, safe...bool) *SortedStringArray {
+func NewSortedStringArray(cap int, unsafe...bool) *SortedStringArray {
     return &SortedStringArray {
-        mu          : rwmutex.New(safe...),
+        mu          : rwmutex.New(unsafe...),
         array       : make([]string, 0, cap),
         unique      : gtype.NewBool(),
         compareFunc : func(v1, v2 string) int {
@@ -70,6 +70,17 @@ func (a *SortedStringArray) Get(index int) string {
 func (a *SortedStringArray) Remove(index int) string {
     a.mu.Lock()
     defer a.mu.Unlock()
+    // 边界删除判断，以提高删除效率
+    if index == 0 {
+        value  := a.array[0]
+        a.array = a.array[1 : ]
+        return value
+    } else if index == len(a.array) - 1 {
+        value  := a.array[index]
+        a.array = a.array[: index]
+        return value
+    }
+    // 如果非边界删除，会涉及到数组创建，那么删除的效率差一些
     value  := a.array[index]
     a.array = append(a.array[ : index], a.array[index + 1 : ]...)
     return value
@@ -88,9 +99,9 @@ func (a *SortedStringArray) PopLeft() string {
 func (a *SortedStringArray) PopRight() string {
     a.mu.Lock()
     defer a.mu.Unlock()
-    length := len(a.array)
-    value  := a.array[length - 1]
-    a.array = a.array[: length - 1]
+    index  := len(a.array) - 1
+    value  := a.array[index]
+    a.array = a.array[: index]
     return value
 }
 
@@ -136,16 +147,14 @@ func (a *SortedStringArray) binSearch(value string, lock bool) (index int, resul
     max := len(a.array) - 1
     mid := 0
     cmp := -2
-    for {
+    for min <= max {
         mid = int((min + max) / 2)
         cmp = a.compareFunc(value, a.array[mid])
         switch cmp {
             case -1 : max = mid - 1
-            case  0 :
             case  1 : min = mid + 1
-        }
-        if cmp == 0 || min > max {
-            break
+            case  0 :
+                return mid, cmp
         }
     }
     return mid, cmp
@@ -180,7 +189,9 @@ func (a *SortedStringArray) doUnique() {
 // 清空数据数组
 func (a *SortedStringArray) Clear() {
     a.mu.Lock()
-    a.array = make([]string, 0, a.cap)
+    if len(a.array) > 0 {
+        a.array = make([]string, 0, a.cap)
+    }
     a.mu.Unlock()
 }
 

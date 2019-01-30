@@ -4,7 +4,7 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// MVC
+// Package gmvc provides basic object classes for MVC.
 package gmvc
 
 import (
@@ -32,7 +32,7 @@ func (c *Controller) Init(r *ghttp.Request) {
 }
 
 // 控制器结束请求接口方法
-func (c *Controller) Shut(r *ghttp.Request) {
+func (c *Controller) Shut() {
 
 }
 

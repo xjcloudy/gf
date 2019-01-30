@@ -5,12 +5,15 @@
 // You can obtain one at https://gitee.com/johng/gf.
 // @author john, zseeker
 
-// 日志模块.
+// Package glog implements powerful and easy-to-use levelled logging functionality.
+// 
+// 日志模块,
 // 直接文件/输出操作，没有异步逻辑，没有使用缓存或者通道
 package glog
 
 import (
     "gitee.com/johng/gf/g/container/gtype"
+    "gitee.com/johng/gf/g/internal/cmdenv"
     "io"
 )
 
@@ -31,6 +34,10 @@ var (
     // 默认的日志对象
     logger = New()
 )
+
+func init() {
+    SetDebug(cmdenv.Get("gf.glog.debug", true).Bool())
+}
 
 // 日志日志目录绝对路径
 func SetPath(path string) {
@@ -151,10 +158,6 @@ func Fatalf(format string, v ...interface{}) {
     logger.Fatalf(format, v ...)
 }
 
-func Fatalln(v ...interface{}) {
-    logger.Fatalln(v ...)
-}
-
 func Fatalfln(format string, v ...interface{}) {
     logger.Fatalfln(format, v ...)
 }
@@ -165,10 +168,6 @@ func Panic(v ...interface{}) {
 
 func Panicf(format string, v ...interface{}) {
     logger.Panicf(format, v ...)
-}
-
-func Panicln(v ...interface{}) {
-    logger.Panicln(v ...)
 }
 
 func Panicfln(format string, v ...interface{}) {

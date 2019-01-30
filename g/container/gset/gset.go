@@ -4,12 +4,14 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 并发安全的集合SET.
+// Package gset provides kinds of concurrent-safe(alternative) sets.
+//
+// 并发安全集合.
 package gset
 
 type Set = InterfaceSet
 
 // 默认Set类型
-func New(safe...bool) *Set {
-    return NewInterfaceSet(safe...)
+func New(unsafe...bool) *Set {
+    return NewInterfaceSet(unsafe...)
 }

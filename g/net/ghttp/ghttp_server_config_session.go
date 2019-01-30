@@ -3,7 +3,6 @@
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
-// 配置管理数据结构定义.
 
 package ghttp
 
@@ -13,6 +12,7 @@ import "gitee.com/johng/gf/g/os/glog"
 func (s *Server) SetSessionMaxAge(age int) {
     if s.Status() == SERVER_STATUS_RUNNING {
         glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
+        return
     }
     s.config.SessionMaxAge = age
 }
@@ -21,6 +21,7 @@ func (s *Server) SetSessionMaxAge(age int) {
 func (s *Server) SetSessionIdName(name string) {
     if s.Status() == SERVER_STATUS_RUNNING {
         glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
+        return
     }
     s.config.SessionIdName = name
 }

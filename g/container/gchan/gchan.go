@@ -4,6 +4,8 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gchan provides graceful operations for channel.
+//
 // 优雅的Channel操作.
 package gchan
 
@@ -40,8 +42,7 @@ func (q *Chan) Pop() interface{} {
 
 // 关闭队列(通知所有通过Pop阻塞的协程退出)
 func (q *Chan) Close() {
-    if !q.closed.Val() {
-        q.closed.Set(true)
+    if !q.closed.Set(true) {
         close(q.list)
     }
 }

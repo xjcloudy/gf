@@ -4,7 +4,9 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 类型转换.
+// Package gconv implements powerful and easy-to-use converting functionality for any types of variables.
+// 
+// 类型转换, 
 // 内部使用了bytes作为底层转换类型，效率很高。
 package gconv
 
@@ -14,6 +16,11 @@ import (
     "gitee.com/johng/gf/g/encoding/gbinary"
     "strings"
 )
+
+// 转换为string类型的接口
+type apiString interface {
+    String() string
+}
 
 // 将变量i转换为字符串指定的类型t，非必须参数extraParams用以额外的参数传递
 func Convert(i interface{}, t string, extraParams...interface{}) interface{} {
@@ -80,9 +87,14 @@ func String(i interface{}) string {
         case string:  return value
         case []byte:  return string(value)
         default:
-            // 默认使用json进行字符串转换
-            jsonContent, _ := json.Marshal(value)
-            return string(jsonContent)
+            if f, ok := value.(apiString); ok {
+                // 如果变量实现了String()接口，那么使用该接口执行转换
+                return f.String()
+            } else {
+                // 默认使用json进行字符串转换
+                jsonContent, _ := json.Marshal(value)
+                return string(jsonContent)
+            }
     }
 }
 
@@ -210,7 +222,11 @@ func Uint(i interface{}) uint {
             }
             return 0
         default:
-            return uint(Float64(value))
+            v := Float64(value)
+            if v < 0 {
+                v = -v
+            }
+            return uint(v)
     }
 }
 

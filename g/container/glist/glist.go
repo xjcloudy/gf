@@ -1,263 +1,306 @@
 // Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
-// If a copy of the MIT was not distributed with this file,
+// If a copy of the MIT was not distributed with l file,
 // You can obtain one at https://gitee.com/johng/gf.
 //
 
+// Package glist provides a concurrent-safe(alternative) doubly linked list.
+//
 // 并发安全的双向链表.
 package glist
 
 import (
-	"container/list"
-	"gitee.com/johng/gf/g/container/internal/rwmutex"
+    "container/list"
+    "gitee.com/johng/gf/g/internal/rwmutex"
 )
 
 // 变长双向链表
 type List struct {
-	mu   *rwmutex.RWMutex
-	list *list.List
+    mu     *rwmutex.RWMutex
+    list   *list.List
 }
 
+type Element = list.Element
+
+
 // 获得一个变长链表指针
-func New(safe...bool) *List {
-	return &List{
-	    mu   : rwmutex.New(safe...),
-		list : list.New(),
+func New(unsafe...bool) *List {
+	return &List {
+	    mu   : rwmutex.New(unsafe...),
+	    list : list.New(),
     }
 }
 
 // 往链表头入栈数据项
-func (this *List) PushFront(v interface{}) *list.Element {
-	this.mu.Lock()
-	e := this.list.PushFront(v)
-	this.mu.Unlock()
-	return e
+func (l *List) PushFront(v interface{}) (e *Element) {
+    l.mu.Lock()
+    e = l.list.PushFront(v)
+    l.mu.Unlock()
+    return
 }
 
 // 往链表尾入栈数据项
-func (this *List) PushBack(v interface{}) *list.Element {
-	this.mu.Lock()
-	r := this.list.PushBack(v)
-	this.mu.Unlock()
-	return r
+func (l *List) PushBack(v interface{}) (e *Element) {
+    l.mu.Lock()
+    e = l.list.PushBack(v)
+    l.mu.Unlock()
+    return
 }
-
-// 在list 中元素mark之后插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
-func (this *List) InsertAfter(v interface{}, mark *list.Element) *list.Element {
-    this.mu.Lock()
-    r := this.list.InsertAfter(v, mark)
-    this.mu.Unlock()
-    return r
-}
-
-// 在list 中元素mark之前插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
-func (this *List) InsertBefore(v interface{}, mark *list.Element) *list.Element {
-    this.mu.Lock()
-    r := this.list.InsertBefore(v, mark)
-    this.mu.Unlock()
-    return r
-}
-
 
 // 批量往链表头入栈数据项
-func (this *List) BatchPushFront(vs []interface{}) {
-	this.mu.Lock()
-	for _, item := range vs {
-		this.list.PushFront(item)
+func (l *List) BatchPushFront(values []interface{}) {
+    l.mu.Lock()
+	for _, v := range values {
+        l.list.PushFront(v)
 	}
-	this.mu.Unlock()
+    l.mu.Unlock()
+}
+
+// 批量往链表尾入栈数据项
+func (l *List) BatchPushBack(values []interface{}) {
+    l.mu.Lock()
+    for _, v := range values {
+        l.list.PushBack(v)
+    }
+    l.mu.Unlock()
 }
 
 // 从链表尾端出栈数据项(删除)
-func (this *List) PopBack() interface{} {
-	this.mu.Lock()
-	if elem := this.list.Back(); elem != nil {
-		item := this.list.Remove(elem)
-		this.mu.Unlock()
-		return item
+func (l *List) PopBack() (value interface{}) {
+    l.mu.Lock()
+	if e := l.list.Back(); e != nil {
+        value = l.list.Remove(e)
 	}
-	this.mu.Unlock()
-	return nil
+    l.mu.Unlock()
+	return
 }
 
 // 从链表头端出栈数据项(删除)
-func (this *List) PopFront() interface{} {
-	this.mu.Lock()
-	if elem := this.list.Front(); elem != nil {
-		item := this.list.Remove(elem)
-		this.mu.Unlock()
-		return item
-	}
-	this.mu.Unlock()
-	return nil
+func (l *List) PopFront() (value interface{}) {
+    l.mu.Lock()
+    if e := l.list.Front(); e != nil {
+        value = l.list.Remove(e)
+    }
+    l.mu.Unlock()
+    return
 }
 
 // 批量从链表尾端出栈数据项(删除)
-func (this *List) BatchPopBack(max int) []interface{} {
-	this.mu.Lock()
-	count := this.list.Len()
-	if count == 0 {
-		this.mu.Unlock()
-		return []interface{}{}
-	}
-
-	if count > max {
-		count = max
-	}
-	items := make([]interface{}, count)
-	for i := 0; i < count; i++ {
-		items[i] = this.list.Remove(this.list.Back())
-	}
-	this.mu.Unlock()
-	return items
+func (l *List) BatchPopBack(max int) (values []interface{}) {
+    l.mu.Lock()
+    length := l.list.Len()
+    if length > 0 {
+        if max > 0 && max < length {
+            length = max
+        }
+        tempe := (*Element)(nil)
+        values = make([]interface{}, length)
+        for i := 0; i < length; i++ {
+            tempe     = l.list.Back()
+            values[i] = l.list.Remove(tempe)
+        }
+    }
+    l.mu.Unlock()
+    return
 }
 
 // 批量从链表头端出栈数据项(删除)
-func (this *List) BatchPopFront(max int) []interface{} {
-	this.mu.Lock()
-	count := this.list.Len()
-	if count == 0 {
-		this.mu.Unlock()
-		return []interface{}{}
-	}
-
-	if count > max {
-		count = max
-	}
-	items := make([]interface{}, count)
-	for i := 0; i < count; i++ {
-		items[i] = this.list.Remove(this.list.Front())
-	}
-	this.mu.Unlock()
-	return items
+func (l *List) BatchPopFront(max int) (values []interface{}) {
+    l.mu.RLock()
+    length := l.list.Len()
+    if length > 0 {
+        if max > 0 && max < length {
+            length = max
+        }
+        tempe := (*Element)(nil)
+        values = make([]interface{}, length)
+        for i := 0; i < length; i++ {
+            tempe     = l.list.Front()
+            values[i] = l.list.Remove(tempe)
+        }
+    }
+    l.mu.RUnlock()
+    return
 }
 
 // 批量从链表尾端依次获取所有数据(删除)
-func (this *List) PopBackAll() []interface{} {
-	this.mu.Lock()
-	count := this.list.Len()
-	if count == 0 {
-		this.mu.Unlock()
-		return []interface{}{}
-	}
-	items := make([]interface{}, count)
-	for i := 0; i < count; i++ {
-		items[i] = this.list.Remove(this.list.Back())
-	}
-	this.mu.Unlock()
-	return items
+func (l *List) PopBackAll() []interface{} {
+	return l.BatchPopBack(-1)
 }
 
 // 批量从链表头端依次获取所有数据(删除)
-func (this *List) PopFrontAll() []interface{} {
-    this.mu.Lock()
-    count := this.list.Len()
-    if count == 0 {
-        this.mu.Unlock()
-        return []interface{}{}
-    }
-    items := make([]interface{}, count)
-    for i := 0; i < count; i++ {
-        items[i] = this.list.Remove(this.list.Front())
-    }
-    this.mu.Unlock()
-    return items
-}
-
-// 删除数据项
-func (this *List) Remove(e *list.Element) interface{} {
-	this.mu.Lock()
-	r := this.list.Remove(e)
-	this.mu.Unlock()
-	return r
-}
-
-// 删除所有数据项
-func (this *List) RemoveAll() {
-	this.mu.Lock()
-	this.list = list.New()
-	this.mu.Unlock()
+func (l *List) PopFrontAll() []interface{} {
+    return l.BatchPopFront(-1)
 }
 
 // 从链表头获取所有数据(不删除)
-func (this *List) FrontAll() []interface{} {
-	this.mu.RLock()
-	count := this.list.Len()
-	if count == 0 {
-        this.mu.RUnlock()
-		return []interface{}{}
-	}
-
-	items := make([]interface{}, 0, count)
-	for e := this.list.Front(); e != nil; e = e.Next() {
-		items = append(items, e.Value)
-	}
-    this.mu.RUnlock()
-	return items
+func (l *List) FrontAll() (values []interface{}) {
+    l.mu.RLock()
+    length := l.list.Len()
+    if length > 0 {
+        values = make([]interface{}, length)
+        for i, e := 0, l.list.Front(); i < length; i, e = i + 1, e.Next() {
+            values[i] = e.Value
+        }
+    }
+    l.mu.RUnlock()
+    return
 }
 
 // 从链表尾获取所有数据(不删除)
-func (this *List) BackAll() []interface{} {
-	this.mu.RLock()
-	count := this.list.Len()
-	if count == 0 {
-        this.mu.RUnlock()
-		return []interface{}{}
-	}
-
-	items := make([]interface{}, 0, count)
-	for e := this.list.Back(); e != nil; e = e.Prev() {
-		items = append(items, e.Value)
-	}
-    this.mu.RUnlock()
-	return items
+func (l *List) BackAll() (values []interface{}) {
+    l.mu.RLock()
+	length := l.list.Len()
+	if length > 0 {
+        values = make([]interface{}, length)
+        for i, e := 0, l.list.Back(); i < length; i, e = i + 1, e.Prev() {
+            values[i] = e.Value
+        }
+    }
+    l.mu.RUnlock()
+	return
 }
 
 // 获取链表头值(不删除)
-func (this *List) FrontItem() interface{} {
-	this.mu.RLock()
-	if f := this.list.Front(); f != nil {
-		this.mu.RUnlock()
-		return f.Value
-	}
-
-	this.mu.RUnlock()
-	return nil
+func (l *List) FrontItem() (value interface{}) {
+    l.mu.RLock()
+    if e := l.list.Front(); e != nil {
+        value = e.Value
+    }
+    l.mu.RUnlock()
+    return
 }
 
 // 获取链表尾值(不删除)
-func (this *List) BackItem() interface{} {
-    this.mu.RLock()
-    if f := this.list.Back(); f != nil {
-        this.mu.RUnlock()
-        return f.Value
+func (l *List) BackItem() (value interface{}) {
+    l.mu.RLock()
+    if e := l.list.Back(); e != nil {
+        value = e.Value
     }
-
-    this.mu.RUnlock()
-    return nil
+    l.mu.RUnlock()
+    return
 }
 
 // 获取表头指针
-func (this *List) Front() *list.Element {
-    this.mu.RLock()
-    r := this.list.Front()
-    this.mu.RUnlock()
-    return r
+func (l *List) Front() (e *Element) {
+    l.mu.RLock()
+    e = l.list.Front()
+    l.mu.RUnlock()
+    return
 }
 
 // 获取表位指针
-func (this *List) Back() *list.Element {
-    this.mu.RLock()
-    r := this.list.Back()
-    this.mu.RUnlock()
-    return r
+func (l *List) Back() (e *Element) {
+    l.mu.RLock()
+    e = l.list.Back()
+    l.mu.RUnlock()
+    return
 }
 
 // 获取链表长度
-func (this *List) Len() int {
-	this.mu.RLock()
-    length := this.list.Len()
-	this.mu.RUnlock()
-	return length
+func (l *List) Len() (length int) {
+    l.mu.RLock()
+    length = l.list.Len()
+    l.mu.RUnlock()
+	return
+}
+
+func (l *List) MoveBefore(e, p *Element) {
+    l.mu.Lock()
+    l.list.MoveBefore(e, p)
+    l.mu.Unlock()
+}
+
+func (l *List) MoveAfter(e, p *Element) {
+    l.mu.Lock()
+    l.list.MoveAfter(e, p)
+    l.mu.Unlock()
+}
+
+func (l *List) MoveToFront(e *Element) {
+    l.mu.Lock()
+    l.list.MoveToFront(e)
+    l.mu.Unlock()
+}
+
+func (l *List) MoveToBack(e *Element) {
+    l.mu.Lock()
+    l.list.MoveToBack(e)
+    l.mu.Unlock()
+}
+
+func (l *List) PushBackList(other *List) {
+    if l != other {
+        other.mu.RLock()
+        defer other.mu.RUnlock()
+    }
+    l.mu.Lock()
+    l.list.PushBackList(other.list)
+    l.mu.Unlock()
+}
+
+func (l *List) PushFrontList(other *List) {
+    if l != other {
+        other.mu.RLock()
+        defer other.mu.RUnlock()
+    }
+    l.mu.Lock()
+    l.list.PushFrontList(other.list)
+    l.mu.Unlock()
+}
+
+// 在list中元素项p之后插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
+func (l *List) InsertAfter(v interface{}, p *Element) (e *Element) {
+    l.mu.Lock()
+    e = l.list.InsertAfter(v, p)
+    l.mu.Unlock()
+    return
+}
+
+// 在list中元素项p之前插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
+func (l *List) InsertBefore(v interface{}, p *Element) (e *Element) {
+    l.mu.Lock()
+    e = l.list.InsertBefore(v, p)
+    l.mu.Unlock()
+    return
+}
+
+// 删除数据项e, 并返回删除项的元素项
+func (l *List) Remove(e *Element) (value interface{}) {
+    l.mu.Lock()
+    value = l.list.Remove(e)
+    l.mu.Unlock()
+    return
+}
+
+// 批量删除数据项
+func (l *List) BatchRemove(es []*Element) {
+    l.mu.Lock()
+    for _, e := range es {
+        l.list.Remove(e)
+    }
+    l.mu.Unlock()
+    return
+}
+
+// 删除所有数据项
+func (l *List) RemoveAll() {
+    l.mu.Lock()
+    l.list = list.New()
+    l.mu.Unlock()
+}
+
+// 读锁操作
+func (l *List) RLockFunc(f func(list *list.List)) {
+    l.mu.RLock()
+    defer l.mu.RUnlock()
+    f(l.list)
+}
+
+// 写锁操作
+func (l *List) LockFunc(f func(list *list.List)) {
+    l.mu.Lock()
+    defer l.mu.Unlock()
+    f(l.list)
 }

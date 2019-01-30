@@ -4,32 +4,36 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 视图管理.
+// Package gview implements a template engine based on text/template.
+// 
+// 模板引擎.
 package gview
 
 import (
+    "bytes"
+    "errors"
     "fmt"
+    "gitee.com/johng/gf"
+    "gitee.com/johng/gf/g/container/garray"
+    "gitee.com/johng/gf/g/encoding/ghash"
+    "gitee.com/johng/gf/g/encoding/ghtml"
     "gitee.com/johng/gf/g/encoding/gurl"
+    "gitee.com/johng/gf/g/os/gfcache"
+    "gitee.com/johng/gf/g/os/gfile"
     "gitee.com/johng/gf/g/os/glog"
+    "gitee.com/johng/gf/g/os/gspath"
     "gitee.com/johng/gf/g/os/gtime"
+    "gitee.com/johng/gf/g/os/gview/internal/text/template"
+    "gitee.com/johng/gf/g/util/gconv"
     "gitee.com/johng/gf/g/util/gstr"
     "strings"
     "sync"
-    "bytes"
-    "errors"
-    "text/template"
-    "gitee.com/johng/gf/g/container/gmap"
-    "gitee.com/johng/gf/g/encoding/ghash"
-    "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/g/os/gspath"
-    "gitee.com/johng/gf/g/os/gfcache"
-    "gitee.com/johng/gf/g/encoding/ghtml"
 )
 
 // 视图对象
 type View struct {
     mu         sync.RWMutex
-    paths      *gspath.SPath           // 模板查找目录(绝对路径)
+    paths      *garray.StringArray     // 模板查找目录(绝对路径)
     data       map[string]interface{}  // 模板变量
     funcmap    map[string]interface{}  // FuncMap
     delimiters []string                // 模板变量分隔符号
@@ -41,16 +45,19 @@ type Params  = map[string]interface{}
 // 函数映射表
 type FuncMap = map[string]interface{}
 
-// 视图表
-var viewMap = gmap.NewStringInterfaceMap()
-
 // 默认的视图对象
 var viewObj *View
 
 // 初始化默认的视图对象
 func checkAndInitDefaultView() {
     if viewObj == nil {
-        viewObj = Get(".")
+        // gfile.MainPkgPath() 用以判断是否开发环境
+        mainPkgPath := gfile.MainPkgPath()
+        if gfile.MainPkgPath() == "" {
+            viewObj = New(gfile.SelfDir())
+        } else {
+            viewObj = New(mainPkgPath)
+        }
     }
 }
 
@@ -60,26 +67,22 @@ func ParseContent(content string, params Params) ([]byte, error) {
     return viewObj.ParseContent(content, params)
 }
 
-// 获取或者创建一个视图对象
-func Get(path string) *View {
-    if r := viewMap.Get(path); r != nil {
-        return r.(*View)
-    }
-    v := New(path)
-    viewMap.Set(path, v)
-    return v
-}
-
 // 生成一个视图对象
-func New(path string) *View {
+func New(path...string) *View {
     view := &View {
-        paths      : gspath.New(),
+        paths      : garray.NewStringArray(0, 1),
         data       : make(map[string]interface{}),
         funcmap    : make(map[string]interface{}),
         delimiters : make([]string, 2),
     }
-    view.SetPath(path)
+    if len(path) > 0 && len(path[0]) > 0 {
+        view.SetPath(path[0])
+    }
     view.SetDelimiters("{{", "}}")
+    // 内置变量
+    view.data["GF"] = map[string]interface{} {
+        "version" : gf.VERSION,
+    }
     // 内置方法
     view.BindFunc("text",        view.funcText)
     view.BindFunc("html",        view.funcHtmlEncode)
@@ -103,23 +106,28 @@ func New(path string) *View {
 
 // 设置模板目录绝对路径
 func (view *View) SetPath(path string) error {
-    if rp, err := view.paths.Set(path); err != nil {
-        glog.Error("gview.SetPath failed:", err.Error())
+    realPath := gfile.RealPath(path)
+    if realPath == "" {
+        err := errors.New(fmt.Sprintf(`path "%s" does not exist`, path))
+        glog.Error(fmt.Sprintf(`[gview] SetPath failed: %s`, err.Error()))
         return err
-    } else {
-        glog.Debug("gview.SetPath:", rp)
     }
+    view.paths.Clear()
+    view.paths.Append(realPath)
+    glog.Debug("[gview] SetPath:", realPath)
     return nil
 }
 
 // 添加模板目录搜索路径
 func (view *View) AddPath(path string) error {
-    if rp, err := view.paths.Add(path); err != nil {
-        glog.Error("gview.AddPath failed:", err.Error())
+    realPath := gfile.RealPath(path)
+    if realPath == "" {
+        err := errors.New(fmt.Sprintf(`path "%s" does not exist`, path))
+        glog.Error(fmt.Sprintf(`[gview] AddPath failed: %s`, err.Error()))
         return err
-    } else {
-        glog.Debug("gview.AddPath:", rp)
     }
+    view.paths.Append(realPath)
+    glog.Debug("[gview] AddPath:", realPath)
     return nil
 }
 
@@ -141,9 +149,24 @@ func (view *View) Assign(key string, value interface{}) {
 
 // 解析模板，返回解析后的内容
 func (view *View) Parse(file string, params Params, funcmap...map[string]interface{}) ([]byte, error) {
-    path := view.paths.Search(file)
+    path := ""
+    view.paths.RLockFunc(func(array []string) {
+        for _, v := range array {
+            if path, _ = gspath.Search(v, file); path != "" {
+                break
+            }
+        }
+    })
     if path == "" {
-        return nil, errors.New("tpl \"" + file + "\" not found")
+        buffer := bytes.NewBuffer(nil)
+        buffer.WriteString(fmt.Sprintf("[gview] cannot find template file \"%s\" in following paths:", file))
+        view.paths.RLockFunc(func(array []string) {
+            for k, v := range array {
+                buffer.WriteString(fmt.Sprintf("\n%d. %s",k + 1,  v))
+            }
+        })
+        glog.Error(buffer.String())
+        return nil, errors.New(fmt.Sprintf(`tpl "%s" not found`, file))
     }
     content := gfcache.GetContents(path)
     // 执行模板解析，互斥锁主要是用于funcmap
@@ -276,8 +299,15 @@ func (view *View) funcUrlDecode(url interface{}) string {
 }
 
 // 模板内置方法：date
-func (view *View) funcDate(format string, timestamp interface{}) string {
-    return gtime.NewFromTimeStamp(gconv.Int64(timestamp)).Format(format)
+func (view *View) funcDate(format string, timestamp...interface{}) string {
+    t := int64(0)
+    if len(timestamp) > 0 {
+        t = gconv.Int64(timestamp[0])
+    }
+    if t == 0 {
+        t = gtime.Millisecond()
+    }
+    return gtime.NewFromTimeStamp(t).Format(format)
 }
 
 // 模板内置方法：compare

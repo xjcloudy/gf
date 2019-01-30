@@ -8,13 +8,22 @@ package ghttp
 
 import (
     "gitee.com/johng/gf/g/util/gconv"
+    "strings"
 )
 
 // 初始化GET请求参数
 func (r *Request) initGet() {
-    if !r.parsedGet.Val() {
-        r.parsedGet.Set(true)
+    if !r.parsedGet {
         r.queryVars = r.URL.Query()
+        if strings.EqualFold(r.Method, "GET") {
+            if raw := r.GetRaw(); len(raw) > 0 {
+                for _, item := range strings.Split(string(raw), "&") {
+                    array                := strings.Split(item, "=")
+                    r.queryVars[array[0]] = append(r.queryVars[array[0]], array[1])
+                }
+            }
+        }
+        r.parsedGet = true
     }
 }
 
@@ -153,17 +162,13 @@ func (r *Request) GetQueryInterfaces(key string, def ... []interface{}) []interf
 func (r *Request) GetQueryMap(def ... map[string]string) map[string]string {
     r.initGet()
     m := make(map[string]string)
-    if len(def) == 0 {
-        for k, v := range r.queryVars {
-            m[k] = v[0]
-        }
-    } else {
+    for k, v := range r.queryVars {
+        m[k] = v[0]
+    }
+    if len(def) > 0 {
         for k, v := range def[0] {
-            v2 := r.GetQueryArray(k)
-            if v2 == nil {
+            if _, ok := m[k]; !ok {
                 m[k] = v
-            } else {
-                m[k] = v2[0]
             }
         }
     }

@@ -4,17 +4,19 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 其他工具包
+// Package gutil provides some uncategorized util functions.
+// 
+// 工具包.
 package gutil
 
 import (
-    "fmt"
     "bytes"
     "encoding/json"
-    "reflect"
+    "fmt"
     "gitee.com/johng/gf/g/util/gconv"
+    "os"
+    "reflect"
     "runtime"
-    "gitee.com/johng/gf/g/os/glog"
 )
 
 // 格式化打印变量(类似于PHP-vardump)
@@ -43,7 +45,7 @@ func Dump(i...interface{}) {
             if err := encoder.Encode(v); err == nil {
                 fmt.Print(buffer.String())
             } else {
-                fmt.Errorf("%s", err.Error())
+                fmt.Fprintln(os.Stderr, err.Error())
             }
         }
         //fmt.Println()
@@ -62,7 +64,7 @@ func PrintBacktrace() {
             break
         }
     }
-    glog.Header(false).Print(buffer.String())
+    fmt.Print(buffer.String())
 }
 
 // 抛出一个异常

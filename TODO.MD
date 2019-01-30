@@ -1,8 +1,4 @@
 # ON THE WAY
-1. orm增加更多数据库支持；
-1. 增加对于数据表Model的封装；
-1. 更多数据库的ORM功能支持；
-1. 考虑gdb对象管理增加二级连接池特性，提高New&Close性能；
 1. 增加图形验证码支持，至少支持数字和英文字母；
 1. 增加热编译工具，提高开发环境的开发/测试效率（媲美PHP开发效率）；
 1. 增加可选择性的orm tag特性，用以数据表记录与struct对象转换的键名属性映射；
@@ -34,20 +30,23 @@
     - glog分类&日志等级&链式操作、gdb debug自动输出调试信息、gmlock内存锁、
 1. 服务注册域名增加对泛域名的支持；
 1. Cookie设置中文失效问题；
-1. ghttp hook回调使用方式在注册路由比较多的时候，优先级可能使得开发者混乱，考虑方式便于管理；
 1. 使用gconv将slice映射到struct属性上，例如redis hscan的结果集；
 1. 项目参考：
     - https://github.com/namreg/godown
     - https://github.com/Masterminds/sprig
 1. gform参考 https://gohouse.github.io/gorose/dist/index.html 进行改进
-1. 模板引擎增加对对象的支持(参考https://segmentfault.com/q/1010000016829214)；
-1. 由于系统对inotify实例数量(`fs.inotify.max_user_instances`)以及队列大小(`fs.inotify.max_user_watches`)有限制，需要改进`gfsnotify`；
-1. 改进gfpool在文件指针变化时的更新；
-1. `gfsnotify`增加添加监听文件时的监听ID返回，以便调用端删除监听时只删除自己添加的监听，而不影响其他对该同一文件的监听回调；
-1. `gfsnotify`针对添加目录监听时无法使用多个`Watcher`，考虑改进，并考虑动态扩容全局`Watcher`方案；
-
-
-
+1. gtcp提供简便的包发送/接收方法(SendPkg/RecvPkg)以解决常见的TCP通信粘包问题，并完善文档（参考：https://www.cnblogs.com/kex1n/p/6502002.html）；
+1. gfile对于文件的读写强行使用了gfpool，在某些场景下不合适，需要考虑剥离开，并为开发者提供单独的指针池文件操作特性；
+1. 路由增加不区分大小写得匹配方式；
+1. str_ireplace: http://php.net/manual/en/function.str-ireplace.php
+1. strpos/stripos/strrpos/strripos: http://php.net/manual/en/function.stripos.php
+1. 改进WebServer获取POST参数处理逻辑，当提交非form数据时，例如json数据，针对某些方法可以直接解析；
+1. WebServer增加可选择的路由覆盖配置，默认情况下不覆盖；
+1. gkafka这个包比较重，未来从框架中剥离出来；
+1. grpool性能压测结果变慢的问题；
+1. 增加jumplist的数据结构容器；
+1. DelayQueue/PriorityQueue；
+1. gconv针对struct的转换增加json tag支持，gconv.Map默认也支持json tag;
 
 # DONE
 1.  gconv完善针对不同类型的判断，例如：尽量减少sprintf("%v", xxx)来执行string类型的转换；
@@ -73,7 +72,7 @@
 21. 改进控制器及执行对象注册，更友好地支持动态路由注册，例如：注册规则为 /channel/:name，现有的控制器及执行对象注册很难友好支持这种动态形式；
 22. 当前gpage分页包的输出标签不支持li，大多数CSS框架都是li+a标签模式，需要提供可更加灵活的定制化功能实现；
 23. 平滑重启机制改进，以便于开发阶段调试；
-24. 对grpool进行优化改进，包括属性原子操作封装采用gtype实现，修正设计BUG：https://github.com/johng-cn/gf/issues/6；
+24. 对grpool进行优化改进，包括属性原子操作封装采用gtype实现，修正设计BUG：https://github.com/gogf/gf/issues/6；
 25. gredis增加redis密码支持；
 26. 改进ghttp.Server平滑重启机制，当新进程接管服务后，再使用进程间通信方式通知父进程销毁；
 27. gproc进程间通信增加分组特性，不同的进程间可以通过进程ID以及分组名称发送/获取进程消息；
@@ -96,5 +95,14 @@
 44. 完善gform配置管理说明，g.DB/Database和gdb.New的区别；
 1. 完善配置管理章节，说明默认的配置文件更改方式；
 1. 服务注册时判断方法定义满足规范时才执行绑定，否则提示WARN信息；
-
+1. `gfsnotify`增加添加监听文件时的监听ID返回，以便调用端删除监听时只删除自己添加的监听，而不影响其他对该同一文件的监听回调；
+1. `gfsnotify`针对添加目录监听时无法使用多个`Watcher`，考虑改进，并考虑动态扩容全局`Watcher`方案；
+1. 由于系统对inotify实例数量(`fs.inotify.max_user_instances`)以及队列大小(`fs.inotify.max_user_watches`)有限制，需要改进`gfsnotify`；
+1. WebServer事件回调允许对同一个路由规则绑定多个事件回调；
+1. gcfg/gview/ghttp等模块加上对临时文件目录的自动添加监听判断（基本是开发环境下，特别是windows环境），去掉临时文件的监听，避免临时文件过大引起的运行缓慢占用内存问题；
+1. 改进gfpool在文件指针变化时的更新；
+1. ghttp hook回调使用方式在注册路由比较多的时候，优先级可能使得开发者混乱，考虑方式便于管理；
+1. gform对于MySQL字段类型为datetime类型的时区问题分析；
+1. 改进证书打开失败时的WebServer错误提示，前置HOOK校验后关闭后续的HOOK逻辑执行；
+1. 目前WebServer的HOOK是按照优先级执行的，需要增加覆盖特性；
 

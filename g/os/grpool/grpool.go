@@ -4,15 +4,17 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// Goroutine池.
-// 用于goroutine复用，提升异步操作执行效率.
+// Package grpool implements a goroutine reusable pool.
+// 
+// Goroutine池,
+// 用于goroutine复用，提升异步操作执行效率(避免goroutine限制，并节约内存开销).
 // 需要注意的是，grpool提供给的公共池不提供关闭方法，自创建的池可以手动关闭掉。
 package grpool
 
 import (
-    "math"
     "gitee.com/johng/gf/g/container/glist"
     "gitee.com/johng/gf/g/container/gtype"
+    "math"
 )
 
 // goroutine池对象

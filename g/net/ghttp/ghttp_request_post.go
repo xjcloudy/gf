@@ -12,11 +12,11 @@ import (
 
 // 初始化POST请求参数
 func (r *Request) initPost() {
-    if !r.parsedPost.Val() {
-        // 快速保存，尽量避免并发问题
-        r.parsedPost.Set(true)
+    if !r.parsedPost {
         // MultiMedia表单请求解析允许最大使用内存：1GB
-        r.ParseMultipartForm(1024*1024*1024)
+        if r.ParseMultipartForm(1024*1024*1024) == nil {
+            r.parsedPost = true
+        }
     }
 }
 
@@ -155,15 +155,12 @@ func (r *Request) GetPostInterfaces(key string, def ... []interface{}) []interfa
 func (r *Request) GetPostMap(def...map[string]string) map[string]string {
     r.initPost()
     m := make(map[string]string)
-    if len(def) == 0 {
-        for k, v := range r.PostForm {
-            m[k] = v[0]
-        }
-    } else {
+    for k, v := range r.PostForm {
+        m[k] = v[0]
+    }
+    if len(def) > 0 {
         for k, v := range def[0] {
-            if v2, ok := r.PostForm[k]; ok {
-                m[k] = v2[0]
-            } else {
+            if _, ok := m[k]; !ok {
                 m[k] = v
             }
         }

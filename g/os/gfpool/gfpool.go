@@ -4,7 +4,9 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 文件指针池
+// Package gfpool provides io-reusable pool for file pointer.
+// 
+// 文件指针池.
 package gfpool
 
 import (
@@ -89,8 +91,7 @@ func newFilePool(p *Pool, path string, flag int, perm os.FileMode, expire int) *
             perm   : perm,
             path   : path,
         }, nil
-    })
-    pool.SetExpireFunc(func(i interface{}) {
+    }, func(i interface{}) {
         i.(*File).File.Close()
     })
     return pool

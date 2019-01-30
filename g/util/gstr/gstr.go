@@ -4,6 +4,8 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gstr provides useful API for string handling.
+// 
 // 字符串操作.
 package gstr
 
@@ -13,7 +15,7 @@ import (
     "strings"
 )
 
-// 字符串替换
+// 字符串替换(大小写敏感)
 func Replace(origin, search, replace string, count...int) string {
     n := -1
     if len(count) > 0 {
@@ -22,7 +24,7 @@ func Replace(origin, search, replace string, count...int) string {
     return strings.Replace(origin, search, replace, n)
 }
 
-// 使用map进行字符串替换
+// 使用map进行字符串替换(大小写敏感)
 func ReplaceByMap(origin string, replaces map[string]string) string {
     result := origin
     for k, v := range replaces {
@@ -96,6 +98,10 @@ func IsLetterUpper(b byte) bool {
 
 // 判断锁给字符串是否为数字
 func IsNumeric(s string) bool {
+    length := len(s)
+    if length == 0 {
+        return false
+    }
     for i := 0; i < len(s); i++ {
         if s[i] < byte('0') || s[i] > byte('9') {
             return false

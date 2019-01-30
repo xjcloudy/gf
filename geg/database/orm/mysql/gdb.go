@@ -9,7 +9,7 @@ import (
 
 // 本文件用于gf框架的mysql数据库操作示例，不作为单元测试使用
 
-var db *gdb.Db
+var db gdb.DB
 
 // 初始化配置及创建数据库
 func init () {
@@ -17,7 +17,7 @@ func init () {
        Host    : "127.0.0.1",
        Port    : "3306",
        User    : "root",
-       Pass    : "8692651",
+       Pass    : "12345678",
        Name    : "test",
        Type    : "mysql",
        Role    : "master",
@@ -291,7 +291,7 @@ func linkopSelect3() {
 // 链式查询数量1
 func linkopCount1() {
     fmt.Println("linkopCount1:")
-    r, err := db.Table("user u").LeftJoin("user_detail ud", "u.uid=ud.uid").Where("u.uid=?", 1).Count()
+    r, err := db.Table("user u").Fields("uid").LeftJoin("user_detail ud", "u.uid=ud.uid").Where("u.uid=?", 1).Count()
     if err == nil {
         fmt.Println(r)
     } else {
@@ -502,7 +502,7 @@ func main() {
     //update1()
     //update2()
     //update3()
-    //linkopSelect1()
+    linkopSelect1()
     //linkopSelect2()
     //linkopSelect3()
     //linkopCount1()
@@ -511,11 +511,11 @@ func main() {
     //linkopUpdate3()
     //linkopUpdate4()
     //
-    transaction1()
-    transaction2()
+    //transaction1()
+    //transaction2()
     //
     //keepPing()
     //likeQuery()
-    mapToStruct()
+    //mapToStruct()
     //getQueriedSqls()
 }

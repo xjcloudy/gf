@@ -6,16 +6,13 @@ import (
 )
 
 func main() {
-    path := "D:\\Workspace\\Go\\GOPATH\\src\\gitee.com\\johng\\gf\\geg\\other\\test.go"
+    //path := "D:\\Workspace\\Go\\GOPATH\\src\\gitee.com\\johng\\gf\\geg\\other\\test.go"
+    path := "/Users/john/Temp/test"
     _, err := gfsnotify.Add(path, func(event *gfsnotify.Event) {
         glog.Println(event)
-    })
-
-    // 移除对该path的监听
-    //gfsnotify.Remove(path)
-
+    }, true)
     if err != nil {
-        glog.Fatalln(err)
+        glog.Fatal(err)
     } else {
         select {}
     }

@@ -4,16 +4,22 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
-// 配置管理.
+// Package gcfg provides reading, caching and managing for configuration files.
+// 
+// 配置管理,
 // 配置文件格式支持：json, xml, toml, yaml/yml
 package gcfg
 
 import (
+    "bytes"
     "errors"
+    "fmt"
+    "gitee.com/johng/gf/g/container/garray"
     "gitee.com/johng/gf/g/container/gmap"
     "gitee.com/johng/gf/g/container/gtype"
     "gitee.com/johng/gf/g/container/gvar"
     "gitee.com/johng/gf/g/encoding/gjson"
+    "gitee.com/johng/gf/g/os/gfile"
     "gitee.com/johng/gf/g/os/gfsnotify"
     "gitee.com/johng/gf/g/os/glog"
     "gitee.com/johng/gf/g/os/gspath"
@@ -26,7 +32,7 @@ const (
 // 配置管理对象
 type Config struct {
     name   *gtype.String            // 默认配置文件名称
-    paths  *gspath.SPath            // 搜索目录路径
+    paths  *garray.StringArray      // 搜索目录路径
     jsons  *gmap.StringInterfaceMap // 配置文件对象
     vc     *gtype.Bool              // 层级检索是否执行分隔符冲突检测(默认为false，检测会比较影响检索效率)
 }
@@ -39,32 +45,54 @@ func New(path string, file...string) *Config {
     }
     c := &Config {
         name   : gtype.NewString(name),
-        paths  : gspath.New(),
+        paths  : garray.NewStringArray(0, 1),
         jsons  : gmap.NewStringInterfaceMap(),
         vc     : gtype.NewBool(),
     }
-    c.SetPath(path)
+    if len(path) > 0 {
+        c.SetPath(path)
+    }
     return c
 }
 
 // 判断从哪个配置文件中获取内容，返回配置文件的绝对路径
-func (c *Config) filePath(file...string) string {
+func (c *Config) filePath(file...string) (path string) {
     name := c.name.Val()
     if len(file) > 0 {
         name = file[0]
     }
-    return c.paths.Search(name)
+    c.paths.RLockFunc(func(array []string) {
+        for _, v := range array {
+            if path, _ = gspath.Search(v, name); path != "" {
+                break
+            }
+        }
+    })
+    if path == "" {
+        buffer := bytes.NewBuffer(nil)
+        buffer.WriteString(fmt.Sprintf("[gcfg] cannot find config file \"%s\" in following paths:", name))
+        c.paths.RLockFunc(func(array []string) {
+            for k, v := range array {
+                buffer.WriteString(fmt.Sprintf("\n%d. %s",k + 1,  v))
+            }
+        })
+        glog.Error(buffer.String())
+    }
+    return path
 }
 
 // 设置配置管理器的配置文件存放目录绝对路径
 func (c *Config) SetPath(path string) error {
-    if rp, err := c.paths.Set(path); err != nil {
-        glog.Error("gcfg.SetPath failed:", err.Error())
+    realPath := gfile.RealPath(path)
+    if realPath == "" {
+        err := errors.New(fmt.Sprintf(`path "%s" does not exist`, path))
+        glog.Error(fmt.Sprintf(`[gcfg] SetPath failed: %s`, err.Error()))
         return err
-    } else {
-        c.jsons.Clear()
-        glog.Debug("gcfg.SetPath:", rp)
     }
+    c.jsons.Clear()
+    c.paths.Clear()
+    c.paths.Append(realPath)
+    glog.Debug("[gcfg] SetPath:", realPath)
     return nil
 }
 
@@ -77,43 +105,44 @@ func (c *Config) SetViolenceCheck(check bool) {
 
 // 添加配置管理器的配置文件搜索路径
 func (c *Config) AddPath(path string) error {
-    if rp, err := c.paths.Add(path); err != nil {
-        glog.Debug("gcfg.AddPath failed:", err.Error())
+    realPath := gfile.RealPath(path)
+    if realPath == "" {
+        err := errors.New(fmt.Sprintf(`path "%s" does not exist`, path))
+        glog.Error(fmt.Sprintf(`[gcfg] AddPath failed: %s`, err.Error()))
         return err
-    } else {
-        glog.Debug("gcfg.AddPath:", rp)
     }
+    c.paths.Append(realPath)
+    glog.Debug("[gcfg] AddPath:", realPath)
     return nil
 }
 
 // 获取指定文件的绝对路径，默认获取默认的配置文件路径
 func (c *Config) GetFilePath(file...string) string {
-    name := c.name.Val()
-    if len(file) > 0 {
-        name = file[0]
-    }
-    return c.paths.Search(name)
+    return c.filePath(file...)
 }
 
 // 设置配置管理对象的默认文件名称
 func (c *Config) SetFileName(name string) {
-    glog.Debug("gcfg.SetFileName:", name)
+    glog.Debug("[gcfg] SetFileName:", name)
     c.name.Set(name)
 }
 
 // 添加配置文件到配置管理器中，第二个参数为非必须，如果不输入表示添加进入默认的配置名称中
 func (c *Config) getJson(file...string) *gjson.Json {
-    fpath := c.filePath(file...)
-    if r := c.jsons.Get(fpath); r != nil {
+    filePath := c.filePath(file...)
+    if filePath == "" {
+        return nil
+    }
+    if r := c.jsons.Get(filePath); r != nil {
         return r.(*gjson.Json)
     }
-    if j, err := gjson.Load(fpath); err == nil {
+    if j, err := gjson.Load(filePath); err == nil {
         j.SetViolenceCheck(c.vc.Val())
-        c.addMonitor(fpath)
-        c.jsons.Set(fpath, j)
+        c.addMonitor(filePath)
+        c.jsons.Set(filePath, j)
         return j
     } else {
-        glog.Errorfln(`gcfg.Load config file "%s" failed: %s`, fpath, err.Error())
+        glog.Errorfln(`[gcfg] Load config file "%s" failed: %s`, filePath, err.Error())
     }
     return nil
 }
@@ -127,11 +156,11 @@ func (c *Config) Get(pattern string, file...string) interface{} {
 }
 
 // 获得配置项，返回动态变量
-func (c *Config) GetVar(pattern string, file...string) *gvar.Var {
+func (c *Config) GetVar(pattern string, file...string) gvar.VarRead {
     if j := c.getJson(file...); j != nil {
-        return gvar.New(j.Get(pattern))
+        return gvar.New(j.Get(pattern), true)
     }
-    return nil
+    return gvar.New(nil, true)
 }
 
 // 获得一个键值对关联数组/哈希表，方便操作，不需要自己做类型转换

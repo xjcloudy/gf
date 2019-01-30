@@ -1,0 +1,35 @@
+language: go
+
+go:
+- "1.11.x"
+
+branches:
+  only:
+  - master
+  - develop
+
+env:
+- GITEE_GF=$GOPATH/src/gitee.com/johng/gf GO111MODULE=on
+
+services:
+- mysql
+
+before_install:
+- pwd
+
+install:
+- pwd
+- mkdir -p $GITEE_GF
+- cp * $GITEE_GF -R
+- cd $GITEE_GF/g
+
+script:
+- GOARCH=386 go test -v ./...
+- GOARCH=amd64 go test -v ./... -race -coverprofile=coverage.txt -covermode=atomic
+
+
+after_success:
+- bash <(curl -s https://codecov.io/bash)
+
+
+

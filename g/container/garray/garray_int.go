@@ -7,7 +7,7 @@
 package garray
 
 import (
-	"gitee.com/johng/gf/g/container/internal/rwmutex"
+	"gitee.com/johng/gf/g/internal/rwmutex"
 )
 
 type IntArray struct {
@@ -17,9 +17,9 @@ type IntArray struct {
 	array []int            // 底层数组
 }
 
-func NewIntArray(size int, cap int, safe...bool) *IntArray {
+func NewIntArray(size int, cap int, unsafe...bool) *IntArray {
 	a := &IntArray{
-		mu : rwmutex.New(safe...),
+		mu : rwmutex.New(unsafe...),
 	}
 	a.size = size
 	if cap > 0 {
@@ -69,6 +69,17 @@ func (a *IntArray) InsertAfter(index int, value int) {
 func (a *IntArray) Remove(index int) int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// 边界删除判断，以提高删除效率
+	if index == 0 {
+		value  := a.array[0]
+		a.array = a.array[1 : ]
+		return value
+	} else if index == len(a.array) - 1 {
+		value  := a.array[index]
+		a.array = a.array[: index]
+		return value
+	}
+	// 如果非边界删除，会涉及到数组创建，那么删除的效率差一些
 	value  := a.array[index]
 	a.array = append(a.array[ : index], a.array[index + 1 : ]...)
 	return value
@@ -108,10 +119,12 @@ func (a *IntArray) Slice() []int {
 // 清空数据数组
 func (a *IntArray) Clear() {
 	a.mu.Lock()
-	if a.cap > 0 {
-		a.array = make([]int, a.size, a.cap)
-	} else {
-		a.array = make([]int, a.size)
+	if len(a.array) > 0 {
+		if a.cap > 0 {
+			a.array = make([]int, a.size, a.cap)
+		} else {
+			a.array = make([]int, a.size)
+		}
 	}
     a.mu.Unlock()
 }
@@ -132,6 +145,20 @@ func (a *IntArray) Search(value int) int {
 	a.mu.RUnlock()
 
 	return result
+}
+
+// 清理数组中重复的元素项
+func (a *IntArray) Unique() *IntArray {
+	a.mu.Lock()
+	for i := 0; i < len(a.array) - 1; i++ {
+		for j := i + 1; j < len(a.array); j++ {
+			if a.array[i] == a.array[j] {
+				a.array = append(a.array[ : j], a.array[j + 1 : ]...)
+			}
+		}
+	}
+	a.mu.Unlock()
+	return a
 }
 
 // 使用自定义方法执行加锁修改操作

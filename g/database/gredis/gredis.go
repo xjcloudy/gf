@@ -4,8 +4,10 @@
 // If a copy of the MIT was not distributed with this file,
 // You can obtain one at https://gitee.com/johng/gf.
 
+// Package gredis provides client for redis server.
+//
 // Redis客户端.
-// Redis中文手册文档请参考：http://redisdoc.com/ ，Redis官方命令请参考：https://redis.io/commands
+// Redis中文手册文档请参考：http://redisdoc.com/ , Redis官方命令请参考：https://redis.io/commands
 package gredis
 
 import (
@@ -85,6 +87,12 @@ func New(config Config) *Redis {
 // 关闭redis管理对象，将会关闭底层的
 func (r *Redis) Close() error {
     return r.pool.Close()
+}
+
+// 获得一个原生的redis连接对象，用于自定义连接操作，
+// 但是需要注意的是如果不再使用该连接对象时，需要手动Close连接，否则会造成连接数超限。
+func (r *Redis) GetConn() redis.Conn {
+    return r.pool.Get()
 }
 
 // 设置属性 - MaxIdle
